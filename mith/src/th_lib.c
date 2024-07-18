@@ -41,6 +41,10 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
 #include "al_file.h"
 /** todo : Drop these includes when we have implemented thread safe versions of required. */
 #include <string.h>
+#if USE_RVV
+#include <riscv_vector.h>
+#endif
+
 #ifndef TH_SAFE_MALLOC 
 #define TH_SAFE_MALLOC 1
 #endif
@@ -1204,7 +1208,18 @@ char *th_strcat(char *dest, const char *src) {
 	implementation for this function.
 */
 void *th_memcpy(void *s1, const void *s2, size_t n) {
+#if USE_RVV
+  unsigned char* dst = (unsigned char*)s1;
+  const unsigned char* src = (const unsigned char*)s2;
+  for (size_t i = 0; i < n; i++) {
+    long vl = __riscv_vsetvl_e8m8(n - i);
+    __riscv_vse8_v_u8m8(&dst[i], __riscv_vle8_v_u8m8(&src[i], vl), vl);
+    i += vl;
+  }
+  return s1;
+#else
 	return memcpy(s1,s2,n);
+#endif
 }
 /* Function: th_memmove
 	Description:
